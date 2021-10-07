@@ -100,6 +100,7 @@ end
 
 -- Game rendering
 function love.draw()
+    love.graphics.print(love.timer.getFPS())
     World:updateRenderSystems()
 end
 
