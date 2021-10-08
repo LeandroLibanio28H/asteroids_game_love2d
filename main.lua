@@ -7,18 +7,19 @@
 -- Game entry point
 function love.load()
     local ecs = require("lib.ecs.ecs")
+    local vector2 = require("src.vector.vector2")
 
     World = ecs.newWorld()
 
     local playerShip = {
         image = love.graphics.newImage("res/playership/textures/ship.png"),
         transform = {
-            position = {x = love.graphics.getWidth() / 2, y = love.graphics.getHeight() / 2},
-            scale = {x = 1, y = 1},
+            position = vector2:new(love.graphics.getWidth() / 2, love.graphics.getHeight() / 2),
+            scale = vector2:new(1, 1),
             rotation = 0
         },
         movement = {
-            velocity = {x = 0, y = 0},
+            velocity = vector2.new(0, 0),
             rotation = 0,
             moveSpeed = 100,
             rotationSpeed = math.rad(90)
@@ -34,7 +35,7 @@ function love.load()
     -- Render System
     local renderFilter = ecs.newFilter()
     renderFilter:addExpresion(ecs.newRequireAllFilterExpression("image", "transform"))
-    local renderSystem = ecs.newRenderSystem(renderFilter, function (e)
+    local renderSystem = ecs.newRenderSystem(renderFilter, function (e, id)
         love.graphics.draw(
             e.image,
             e.transform.position.x,
@@ -50,16 +51,19 @@ function love.load()
     -- Entity Movement System
     local movementFilter = ecs.newFilter()
     movementFilter:addExpresion(ecs.newRequireAllFilterExpression("movement", "transform"))
-    local movementSystem = ecs.newProcessingSystem(movementFilter, function (e, dt)
+    local movementSystem = ecs.newProcessingSystem(movementFilter, function (e, id, dt)
         if e.playerInput then
             e.movement.rotation = 0
-            e.movement.velocity = {x = 0, y = 0}
+            e.movement.velocity = vector2:new()
             if e.playerInput.up then
-                --
+                e.movement.velocity.y = e.movement.velocity.y -1
             end
             if e.playerInput.down then
-                --
+                e.movement.velocity.y = e.movement.velocity.y + 0.5
             end
+
+            e.movement.velocity:rotate(e.transform.rotation)
+
             if e.playerInput.left then
                 e.movement.rotation = e.movement.rotation - 1
             end
@@ -76,10 +80,14 @@ function love.load()
     -- Player Input System
     local playerInputFilter = ecs.newFilter()
     playerInputFilter:addExpresion(ecs.newRequireAllFilterExpression("movement", "playerInput"))
-    local playerInputSystem = ecs.newKeyboardSystem(playerInputFilter, function (e, k, s, r, p)
+    local playerInputSystem = ecs.newKeyboardSystem(playerInputFilter, function (e, id, k, s, r, p)
         for key, _ in pairs(e.playerInput) do
             if key == k then
                 e.playerInput[key] = p
+            end
+            if k == 'x' then
+                print("aqui foi")
+                World:removeEntity(id)
             end
         end
     end)
