@@ -29,6 +29,12 @@ function love.load()
             left = false,
             right = false,
             down = false
+        },
+        wrapAround = {
+            top = 0,
+            left = 0,
+            right = love.graphics.getWidth(),
+            bottom = love.graphics.getHeight()
         }
     }
 
@@ -86,14 +92,32 @@ function love.load()
                 e.playerInput[key] = p
             end
             if k == 'x' then
-                print("aqui foi")
                 World:removeEntity(id)
             end
         end
     end)
 
+    -- Wrap Around System
+    local wrapAroundFilter = ecs.newFilter()
+    wrapAroundFilter:addExpresion(ecs.newRequireAllFilterExpression("transform", "image", "wrapAround"))
+    local wrapAroundSystem = ecs.newProcessingSystem(wrapAroundFilter, function (e, id, dt)
+        if e.transform.position.x < e.wrapAround.left - e.image:getWidth() then
+            e.transform.position.x = e.wrapAround.right + e.image:getWidth() / 2
+        end
+        if e.transform.position.x > e.wrapAround.right + e.image:getWidth() then
+            e.transform.position.x = e.wrapAround.left - e.image:getWidth() / 2
+        end
+        if e.transform.position.y < e.wrapAround.top - e.image:getHeight() then
+            e.transform.position.y = e.wrapAround.bottom + e.image:getHeight() / 2
+        end
+        if e.transform.position.y > e.wrapAround.bottom + e.image:getHeight() then
+            e.transform.position.y = e.wrapAround.top - e.image:getWidth() / 2
+        end
+    end)
+
     World:addRenderSystem(renderSystem)
     World:addProcessingSystem(movementSystem)
+    World:addProcessingSystem(wrapAroundSystem)
     World:addKeyboardSystem(playerInputSystem)
 
     World:addEntity(playerShip)
