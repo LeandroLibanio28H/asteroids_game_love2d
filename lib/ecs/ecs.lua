@@ -53,17 +53,16 @@ function ecs.newWorld()
     -- Add Entity to the world
     -- Entities are only tables with data (components)
     function world:addEntity(entity)
+        table.insert(self.entities, #self.entities + 1, entity)
         for k, v in ipairs(self.processSystems) do
-            v:_evaluate(entity, k)
+            v:_evaluate(entity, #self.entities)
         end
         for k, v in ipairs(self.renderSystems) do
-            v:_evaluate(entity, k)
+            v:_evaluate(entity, #self.entities)
         end
         for k, v in ipairs(self.keyBoardSystems) do
-            v:_evaluate(entity, k)
+            v:_evaluate(entity, #self.entities)
         end
-
-        table.insert(self.entities, entity)
         return #self.entities
     end
 
@@ -133,6 +132,7 @@ end
 -- Creates a new processing system
 function ecs.newProcessingSystem(filter, fn)
     local system = _newSystem()
+    system.registeredEntities = {}
     system.filter = filter
     system.run = fn
 
