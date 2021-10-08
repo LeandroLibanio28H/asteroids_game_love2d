@@ -64,6 +64,13 @@ function ecs.newWorld()
         end
 
         table.insert(self.entities, entity)
+        return #self.entities
+    end
+
+
+    -- Remove entity
+    function world:removeEntity(id)
+        self.entities[id] = false
     end
 
 
@@ -88,7 +95,7 @@ function ecs.newWorld()
     -- Add a Keyboard system to the world
     function world:addKeyboardSystem(system)
         if #self.entities > 0 then
-            error 'Unable to create systems at runtime!'
+            error 'Unable to create systems when there are entities in the world!'
         else
             table.insert(self.keyBoardSystems, system)
         end
@@ -111,15 +118,12 @@ local function _newSystem()
     }
     function system:_evaluate(e, id)
         local result = true
-        for k, v in ipairs(self.filter.expressions) do
-           result = loadstring(v)()(self, e)
-           if not result then
-               return
-           end
+        for i = 1, #self.filter.expressions do
+            result = self.filter.expressions[i]:fn(e)
         end
 
         if result then
-            table.insert(self.registeredEntities, id)
+            table.insert(self.registeredEntities, id, id)
         end
     end
 
@@ -133,8 +137,10 @@ function ecs.newProcessingSystem(filter, fn)
     system.run = fn
 
     function system:update(world, dt)
-        for _, v in pairs(self.registeredEntities) do
-            self.run(world.entities[v], dt)
+        for id, e in pairs(self.registeredEntities) do
+            if world.entities[id] then
+                self.run(world.entities[e], id, dt)
+            end
         end
     end
 
@@ -148,8 +154,10 @@ function ecs.newRenderSystem(filter, fn)
     system.run = fn
 
     function system:update(world)
-        for _, v in pairs(self.registeredEntities) do
-            self.run(world.entities[v])
+        for id, e in pairs(self.registeredEntities) do
+            if world.entities[id] then
+                self.run(world.entities[e], id)
+            end
         end
     end
 
@@ -163,8 +171,10 @@ function ecs.newKeyboardSystem(filter, fn)
     system.run = fn
 
     function system:update(world, k, s, r, p)
-        for _, v in pairs(self.registeredEntities) do
-            self.run(world.entities[v], k, s, r, p)
+        for id, e in pairs(self.registeredEntities) do
+            if world.entities[id] then
+                self.run(world.entities[e], id, k, s, r, p)
+            end
         end
     end
 
@@ -196,61 +206,107 @@ end
 -- Creates a new filter expression.
 -- RequireAllFilterExpressions will select only entities with all listed components
 function ecs.newRequireAllFilterExpression(...)
-    local expression = {}
+    local expression = {
+        items = {},
+        fn = nil
+    }
     for i = 1, select('#', ...) do
         local item = select(i, ...)
         if (type(item) == 'string') then
-            table.insert(expression, ("e['%s'] ~= nil"):format(item))
+            table.insert(expression.items, item)
         else
             error('Filters must always be strings!')
         end
     end
-    return ('return function (self, e) return %s end'):format(table.concat(expression, ' and '))
+    function expression:fn(e)
+        for i = 1, #self.items do
+            local item = self.items[i]
+            if not e[item] then
+                return false
+            end
+        end
+        return true
+    end
+
+    return expression
 end
 
 -- Creates a new filter expression.
 -- RequireAnyFilterExpression will select only entities with at least one listed component
 function ecs.newRequireAnyFilterExpression(...)
-    local expression = {}
+    local expression = {
+        items = {},
+        fn = nil
+    }
     for i = 1, select('#', ...) do
         local item = select(i, ...)
         if (type(item) == 'string') then
-            table.insert(expression, ("e['%s'] ~= nil"):format(item))
+            table.insert(expression.items, item)
         else
             error('Filters must always be strings!')
         end
     end
-    return ('return function(self, e) return %s end'):format(table.concat(expression, ' or '))
+    function expression:fn(e)
+        for i = 1, #self.items do
+            local item = self.items[i]
+            if e[item] then
+                return true
+            end
+        end
+        return false
+    end
 end
 
 -- Creates a new filter expression.
 -- RejectAllFilterExpression will select only entities with none of listed components
 function ecs.newRejectAllFilterExpression(...)
-    local expression = {}
+    local expression = {
+        items = {},
+        fn = nil
+    }
     for i = 1, select('#', ...) do
         local item = select(i, ...)
         if (type(item) == 'string') then
-            table.insert(expression, ("not e['%s']"):format(item))
+            table.insert(expression.items, item)
         else
             error('Filters must always be strings!')
         end
     end
-    return ('return function(self, e) return %s end'):format(table.concat(expression, ' and '))
+    function expression:fn(e)
+        for i = 1, #self.items do
+            local item = self.items[i]
+            if e[item] then
+                return false
+            end
+        end
+        return true
+    end
 end
 
 -- Creates a new filter expression.
 -- RejectAnyFilterExpression will select only entities without at least one of listed component
 function ecs.newRejectAnyFilterExpression(...)
-    local expression = {}
+    local expression = {
+        items = {},
+        fn = nil
+    }
     for i = 1, select('#', ...) do
         local item = select(i, ...)
         if (type(item) == 'string') then
-            table.insert(expression, ("not e['%s']"):format(item))
+            table.insert(expression.items, item)
         else
             error('Filters must always be strings!')
         end
     end
-    return ('return function(self, e) return %s end'):format(table.concat(expression, ' or '))
+    function expression:fn(e)
+        for i = 1, #self.items do
+            local item = self.items[i]
+            if not e[item] then
+                return true
+            end
+        end
+        return false
+    end
 end
 
 
