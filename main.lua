@@ -108,6 +108,7 @@ end
 -- Game keyboard callbacks
 -- Key pressed
 function love.keypressed(key, scan, isrepeat)
+    if key == "escape" then love.event.quit() end
     World:updateKeyboardSystems(key, scan, isrepeat, true)
 end
 
